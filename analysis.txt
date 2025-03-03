@@ -1,0 +1,29 @@
+import pandas as pd
+import boto3
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+
+# Load data from DynamoDB
+dynamodb = boto3.resource("dynamodb")
+table = dynamodb.Table("RaspberryPi4-SensorData")
+
+response = table.scan()
+data = pd.DataFrame(response["Items"])
+
+# Convert timestamp to numeric value
+data["timestamp"] = pd.to_datetime(data["timestamp"])
+data["timestamp"] = data["timestamp"].astype(int) / 10**9  # Convert to Unix timestamp
+
+# Train a predictive model
+X = data[["timestamp"]]
+y = data["temperature"]
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Predict future temperature
+future_time = [[int(time.time()) + 3600]]  # Predict 1 hour ahead
+predicted_temp = model.predict(future_time)
+
+print(f"Predicted Temperature: {predicted_temp[0]:.2f}°C")
